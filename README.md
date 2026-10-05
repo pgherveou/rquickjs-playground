@@ -40,7 +40,7 @@ script for a platform after changing `src/`.
   global injected from Rust whose `host.call(method, payload)` is a native async function.
 - No `fetch`, `require`, `process`, file system, network or `WebAssembly`.
 - Both apps also have a "Parallel sandboxes" screen: it starts N sandboxes at once (default 10), each
-  waiting a different delay before logging, and lists them as they finish with the total time.
+  waiting 200 ms before logging its own number, and lists them as they finish with the total time.
 - `samples/*.js` hold the scripts both apps list. Each header states what it must produce
   (`// expect:`, `// expect-error:`, `// expect-console:`), and `cargo test` checks every one.
 

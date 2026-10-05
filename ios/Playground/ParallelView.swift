@@ -1,15 +1,12 @@
 import SwiftUI
 
-/// The script each parallel sandbox runs: wait a worker-specific delay, then log.
+/// The script for one parallel sandbox, with its number written into the source.
 enum WorkerScript {
-    static let body = """
-        const delay = 100 + (worker * 137) % 400;
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        console.log("worker " + worker + " done");
-        """
-
     static func source(worker: Int) -> String {
-        "const worker = \(worker);\n" + body
+        """
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        console.log("worker \(worker) done");
+        """
     }
 }
 
@@ -36,7 +33,7 @@ struct ParallelView: View {
             VStack(alignment: .leading, spacing: 16) {
                 Stepper("Sandboxes: \(count)", value: $count, in: 1...100)
                     .disabled(isRunning)
-                CodeBlock(title: "Each sandbox runs", text: "const worker = 1…\(count);\n" + WorkerScript.body)
+                CodeBlock(title: "Script for sandbox 1", text: WorkerScript.source(worker: 1))
                 Button(isRunning ? "Running…" : "Run") { Task { await run() } }
                     .buttonStyle(.borderedProminent)
                     .disabled(isRunning)

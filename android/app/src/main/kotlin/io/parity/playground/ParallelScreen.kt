@@ -34,13 +34,10 @@ import kotlinx.coroutines.launch
 import uniffi.playground.ScriptOutcome
 import uniffi.playground.runScript
 
-/** The script each parallel sandbox runs: wait a worker-specific delay, then log. */
+/** The script for one parallel sandbox, with its number written into the source. */
 private object WorkerScript {
-    const val BODY = """const delay = 100 + (worker * 137) % 400;
-await new Promise((resolve) => setTimeout(resolve, delay));
-console.log("worker " + worker + " done");"""
-
-    fun source(worker: Int) = "const worker = $worker;\n$BODY"
+    fun source(worker: Int) = """await new Promise((resolve) => setTimeout(resolve, 200));
+console.log("worker $worker done");"""
 }
 
 private data class WorkerResult(val worker: Int, val outcome: ScriptOutcome) {
@@ -82,7 +79,7 @@ fun ParallelScreen(onBack: () -> Unit) {
                 OutlinedButton(onClick = { count-- }, enabled = !isRunning && count > 1) { Text("−") }
                 OutlinedButton(onClick = { count++ }, enabled = !isRunning && count < 100) { Text("+") }
             }
-            CodeBlock("Each sandbox runs", "const worker = 1…$count;\n${WorkerScript.BODY}")
+            CodeBlock("Script for sandbox 1", WorkerScript.source(1))
             Button(
                 onClick = {
                     results = emptyList()
