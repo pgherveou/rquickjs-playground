@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Builds the Rust sandbox for Android and generates the Kotlin bindings the demo app compiles against.
-# Needs ANDROID_NDK_HOME and the aarch64-linux-android Rust target.
+# Needs ANDROID_HOME, the NDK version pinned in android/app/build.gradle.kts and the aarch64-linux-android
+# Rust target.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-: "${ANDROID_NDK_HOME:?set ANDROID_NDK_HOME to an NDK install}"
+: "${ANDROID_HOME:?set ANDROID_HOME to the Android SDK}"
+ndk_version=$(sed -n 's/^ *ndkVersion = "\(.*\)"$/\1/p' android/app/build.gradle.kts)
 min_sdk=26
-toolchain="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/darwin-x86_64"
+toolchain="$ANDROID_HOME/ndk/$ndk_version/toolchains/llvm/prebuilt/darwin-x86_64"
 jni_libs=android/app/src/main/jniLibs/arm64-v8a
 bindings=android/app/src/generated/kotlin
 

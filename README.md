@@ -25,8 +25,8 @@ scripts/build-android.sh && (cd android && ./gradlew :app:installDebug)
 script for a platform after changing `src/`.
 
 - iOS needs the `aarch64-apple-ios-sim` Rust target.
-- Android needs the `aarch64-linux-android` Rust target, `ANDROID_NDK_HOME`, JDK 17, and the SDK in
-  `ANDROID_HOME` or `android/local.properties`. It builds for arm64 devices and emulators only.
+- Android needs the `aarch64-linux-android` Rust target, JDK 17, and the SDK in `ANDROID_HOME` with the
+  NDK version pinned in `android/app/build.gradle.kts`. It builds for arm64 devices and emulators only.
 
 ## What it does
 

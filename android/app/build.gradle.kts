@@ -7,6 +7,8 @@ plugins {
 android {
     namespace = "io.parity.playground"
     compileSdk = 36
+    // scripts/build-android.sh reads this to build the Rust library with the same NDK.
+    ndkVersion = "29.0.14206865"
 
     defaultConfig {
         applicationId = "io.parity.rquickjs_playground"
@@ -30,6 +32,9 @@ android {
     }
 
     buildFeatures { compose = true }
+
+    // JNA also ships ABIs the NDK has no strip tool for; the app only targets arm64-v8a.
+    packaging { jniLibs { excludes += listOf("lib/armeabi/**", "lib/mips/**", "lib/mips64/**") } }
 }
 
 kotlin {
