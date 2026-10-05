@@ -1,103 +1,48 @@
 # rquickjs playground
 
-An experiment in running product JavaScript without a WebView: a Rust sandbox on
-[rquickjs](https://github.com/DelSkayn/rquickjs) (QuickJS-NG) with a few
-[LLRT](https://github.com/awslabs/llrt) modules for web globals, called from a SwiftUI app through
-[UniFFI](https://github.com/mozilla/uniffi-rs).
+Runs JavaScript in a QuickJS sandbox from Rust, with no WebView, and calls it from a SwiftUI app.
+Built on [rquickjs](https://github.com/DelSkayn/rquickjs) (QuickJS-NG), a few
+[LLRT](https://github.com/awslabs/llrt) modules for web globals, and
+[UniFFI](https://github.com/mozilla/uniffi-rs) for the Swift bindings.
 
-The app lists the scripts in `samples/`. Selecting one shows the script, runs it in a fresh sandbox,
-and shows the result, any error, and what it logged.
+<p>
+  <img src="docs/demo.gif" width="220" alt="Opening samples and running them">
+  <img src="docs/console-capture.png" width="220" alt="Console capture sample">
+  <img src="docs/host-call.png" width="220" alt="Native host call sample">
+  <img src="docs/infinite-loop.png" width="220" alt="Infinite loop stopped by the time budget">
+</p>
 
-## Layout
-
-```
-src/lib.rs            async run_script(source) -> ScriptOutcome, the only exported function
-src/console.rs        console.* that records lines instead of printing them
-src/timers.rs         setTimeout / setInterval / clear* / queueMicrotask, owned by one runtime
-samples/*.js          sample scripts; the header states what each must produce
-tests/samples.rs      runs every sample and checks it against its header
-tests/concurrency.rs  one caller thread awaits ten sandboxes at once
-examples/run.rs       runs one script from the command line
-scripts/build-ios.sh  builds the xcframework and Swift bindings into ios/Generated/
-ios/                  SwiftUI app; its project includes samples/ as bundle resources
-```
-
-## Run it
+## Run
 
 ```bash
 cargo test
 ```
 
 ```bash
-cargo run --example run -- samples/07-crypto.js
+scripts/build-ios.sh && open ios/Playground.xcodeproj
 ```
 
-```bash
-scripts/build-ios.sh
-```
+`cargo run --example run -- samples/07-crypto.js` runs one script from the command line. The iOS build
+needs the `aarch64-apple-ios-sim` Rust target; rerun `scripts/build-ios.sh` after changing `src/`.
 
-```bash
-open ios/Playground.xcodeproj
-```
+## What it does
 
-Run `scripts/build-ios.sh` again after changing anything under `src/`. It builds the simulator slice;
-pass `--device` to add the device slice. It needs the `aarch64-apple-ios-sim` (and for `--device`,
-`aarch64-apple-ios`) Rust targets.
-
-To build and install from the command line instead of Xcode:
-
-```bash
-xcodebuild -project ios/Playground.xcodeproj -scheme Playground -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath ios/build/DerivedData build
-```
-
-## Adding a sample
-
-Drop a `.js` file into `samples/`. The app and the test pick it up from there. Header lines:
-
-- `// title: <text>` names it in the app.
-- `// expect: <text>` is the formatted value of the last expression.
-- `// expect-error: <text>` must appear in the error instead.
-- `// expect-console: <text>` is one logged line, in order. Repeat it for several lines.
-
-Scripts run with top-level `await`, and a run waits for every pending timer.
-
-## The sandbox
-
-Each run gets its own QuickJS runtime on its own thread. `run_script` is async, so the caller's
-thread (a Swift concurrency thread in the app) is free while the script runs. Each runtime has a
-16 MiB heap limit, a 1 MiB stack limit and a 1 second budget. The budget covers both execution,
-through QuickJS's interrupt handler, and waiting on timers.
-
-Globals:
-
-| Global                                                                         | Source               |
-| ------------------------------------------------------------------------------ | -------------------- |
-| `AbortController`, `AbortSignal` (without `timeout`)                           | `llrt_abort`         |
-| `atob`, `btoa`, `Buffer`                                                       | `llrt_buffer`        |
-| `crypto` (`getRandomValues`, `randomUUID`, `subtle`)                           | `llrt_crypto`        |
-| `EventTarget`, `Event`                                                         | `llrt_events`        |
-| `URL`, `URLSearchParams`                                                       | `llrt_url`           |
-| `TextEncoder`, `TextDecoder`                                                   | `llrt_util`          |
-| `console`                                                                      | `src/console.rs`     |
-| `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask` | `src/timers.rs`      |
-| `host.call(method, payload)`, a native async function standing in for TrUAPI   | `src/lib.rs`         |
-
-There is no `fetch`, `require`, `process`, file system or network access, and no `WebAssembly`:
-QuickJS-NG does not implement it and no LLRT module adds it.
+- `run_script(source)` is the one exported function. It is async, runs the script on its own thread in
+  a fresh QuickJS runtime, and returns the value or error plus everything the script logged.
+- Limits per run: 16 MiB heap, 1 MiB stack, 1 second for execution and pending timers.
+- Globals: `console`, timers, `queueMicrotask`, `crypto` (with `subtle`), `URL`, `TextEncoder`,
+  `TextDecoder`, `atob`, `btoa`, `Buffer`, `AbortController`, `EventTarget`, and `host.call(method,
+  payload)`, a native async function standing in for TrUAPI.
+- No `fetch`, `require`, `process`, file system, network or `WebAssembly`.
+- `samples/*.js` hold the scripts the app lists. Each header states what it must produce
+  (`// expect:`, `// expect-error:`, `// expect-console:`), and `cargo test` checks every one.
 
 ## Findings
 
-- `llrt_modules` 0.8.1-beta depends on `rquickjs ^0.11`, two minor versions behind rquickjs 0.14, so
-  the playground pins 0.11.
-- The `llrt_modules` umbrella crate does not compile without its `path` feature. The playground
-  depends on the individual `llrt_*` crates instead.
-- `llrt_timers` keeps every runtime's timers in process-wide state. Freeing a runtime while a timer is
-  pending trips QuickJS's leak assertion (`list_empty(&rt->gc_obj_list)`) and aborts the process,
-  which is what stopping a worker mid-`setInterval` would do. `src/timers.rs` replaces it with timers
-  spawned on the runtime itself. `AbortSignal.timeout` goes through `llrt_timers`, so it is removed.
-- rquickjs ships no prebuilt bindings for iOS. The iOS build enables its `bindgen` feature and passes
-  clang the Apple simulator triple and the SDK path (see `scripts/build-ios.sh`).
-- The C parts of QuickJS follow `IPHONEOS_DEPLOYMENT_TARGET`. Without it they target the SDK version
-  and the linker warns on every object.
-- `console.log` of an object prints it over several lines (`{\n  a: 1\n}`), unlike Node's `{ a: 1 }`.
-- A simulator debug build of the app is about 9 MB with the release Rust library linked in.
+- `llrt_timers` keeps timers in process-wide state, and freeing a runtime with a timer pending aborts
+  the process on a QuickJS leak assertion. `src/timers.rs` replaces it with timers owned by the runtime.
+- `llrt_modules` 0.8.1-beta needs `rquickjs ^0.11` (current is 0.14), and its umbrella crate does not
+  build without the `path` feature, so this depends on the individual `llrt_*` crates.
+- rquickjs ships no iOS bindings. The iOS build enables its `bindgen` feature and passes clang the
+  simulator target and SDK (`scripts/build-ios.sh`).
+- A simulator debug build of the app is about 9 MB.
