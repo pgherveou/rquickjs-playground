@@ -32,15 +32,17 @@ script for a platform after changing `src/`.
 
 ## What it does
 
-- `run_script(source)` is the one exported function. It is async, runs the script on its own thread in
-  a fresh QuickJS runtime, and returns the value or error plus everything the script logged.
+- `run_script(source, listener)` is the one exported function. It is async, runs the script on its own
+  thread in a fresh QuickJS runtime, and returns the value or error plus everything the script logged.
+  The optional `ConsoleListener`, implemented in Swift or Kotlin, also receives each line as it is logged.
 - Limits per run: 16 MiB heap, 1 MiB stack, 1 second for execution and pending timers.
 - Globals: `console`, timers, `queueMicrotask`, `crypto` (with `subtle`), `URL`, `TextEncoder`,
   `TextDecoder`, `atob`, `btoa`, `Buffer`, `AbortController`, `EventTarget`, and `host`, a custom
   global injected from Rust whose `host.call(method, payload)` is a native async function.
 - No `fetch`, `require`, `process`, file system, network or `WebAssembly`.
 - Both apps also have a "Parallel sandboxes" screen: it starts N sandboxes at once (default 10), each
-  waiting 200 ms before logging its own number, and lists them as they finish with the total time.
+  logging `worker i start`, waiting 200 ms, then logging `worker i done`, and shows every line in the
+  order it arrives with the total time.
 - `samples/*.js` hold the scripts both apps list. Each header states what it must produce
   (`// expect:`, `// expect-error:`, `// expect-console:`), and `cargo test` checks every one.
 
