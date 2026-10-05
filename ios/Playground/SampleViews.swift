@@ -23,7 +23,7 @@ struct SampleView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 CodeBlock(title: "Script", text: sample.source)
-                Button(isRunning ? "Running…" : "Run again") { Task { await run() } }
+                Button(isRunning ? "Running…" : "Run") { Task { await run() } }
                     .buttonStyle(.borderedProminent)
                     .disabled(isRunning)
                 if let outcome {
@@ -45,10 +45,10 @@ struct SampleView: View {
         }
         .navigationTitle(sample.title)
         .navigationBarTitleDisplayMode(.inline)
-        .task { await run() }
     }
 
     private func run() async {
+        outcome = nil
         isRunning = true
         let source = sample.source
         outcome = await Task.detached { runScript(source: source) }.value
