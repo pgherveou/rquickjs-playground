@@ -4,28 +4,30 @@ import SwiftUI
 enum WorkerScript {
     static func source(worker: Int) -> String {
         """
+        console.log("worker \(worker) start");
         await new Promise((resolve) => setTimeout(resolve, 200));
         console.log("worker \(worker) done");
         """
     }
 }
 
-struct WorkerResult: Identifiable {
-    let worker: Int
-    let outcome: ScriptOutcome
-    var id: Int { worker }
+/// Appends each console line on the main thread, in the order the sandboxes log them.
+final class MainThreadConsole: ConsoleListener {
+    private let append: @MainActor @Sendable (String) -> Void
 
-    var line: String {
-        let duration = String(outcome.durationMs)
-        let padding = String(repeating: " ", count: max(0, 4 - duration.count))
-        return "\(padding)\(duration) ms  " + (outcome.error ?? outcome.console.joined(separator: " "))
+    init(append: @escaping @MainActor @Sendable (String) -> Void) {
+        self.append = append
+    }
+
+    func onLine(line: String) {
+        DispatchQueue.main.async { MainActor.assumeIsolated { self.append(line) } }
     }
 }
 
 struct ParallelView: View {
     @State private var count = 10
-    @State private var results: [WorkerResult] = []
-    @State private var total: Duration?
+    @State private var log: [String] = []
+    @State private var summary: String?
     @State private var isRunning = false
 
     var body: some View {
@@ -37,12 +39,11 @@ struct ParallelView: View {
                 Button(isRunning ? "Running…" : "Run") { Task { await run() } }
                     .buttonStyle(.borderedProminent)
                     .disabled(isRunning)
-                if let total {
-                    Text(verbatim: "\(results.count) sandboxes finished in \(total.formatted(.units(allowed: [.milliseconds])))")
-                        .font(.headline)
+                if let summary {
+                    Text(verbatim: summary).font(.headline)
                 }
-                if !results.isEmpty {
-                    CodeBlock(title: "Finished, in order", text: results.map(\.line).joined(separator: "\n"))
+                if !log.isEmpty {
+                    CodeBlock(title: "Console, in arrival order", text: log.joined(separator: "\n"))
                 }
             }
             .padding()
@@ -52,19 +53,22 @@ struct ParallelView: View {
     }
 
     private func run() async {
-        results = []
-        total = nil
+        log = []
+        summary = nil
         isRunning = true
+        let sandboxes = count
+        let console = MainThreadConsole { log.append($0) }
         let started = ContinuousClock.now
-        await withTaskGroup(of: WorkerResult.self) { group in
-            for worker in 1...count {
-                group.addTask { WorkerResult(worker: worker, outcome: await runScript(source: WorkerScript.source(worker: worker))) }
+        await withTaskGroup(of: (Int, String?).self) { group in
+            for worker in 1...sandboxes {
+                group.addTask { (worker, await runScript(source: WorkerScript.source(worker: worker), listener: console).error) }
             }
-            for await result in group {
-                results.append(result)
+            for await case (let worker, let error?) in group {
+                log.append("worker \(worker) failed: \(error)")
             }
         }
-        total = started.duration(to: .now)
+        let elapsed = started.duration(to: .now).formatted(.units(allowed: [.milliseconds]))
+        summary = "\(sandboxes) sandboxes finished in \(elapsed)"
         isRunning = false
     }
 }

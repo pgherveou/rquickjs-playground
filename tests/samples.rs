@@ -28,7 +28,7 @@ fn expected(source: &str) -> Observed {
 }
 
 async fn observed(source: &str, expected: &Observed) -> Observed {
-    let outcome = run_script(source.to_string()).await;
+    let outcome = run_script(source.to_string(), None).await;
     let error_contains = match (&outcome.error, &expected.error_contains) {
         (Some(error), Some(fragment)) if error.contains(fragment.as_str()) => {
             Some(fragment.clone())

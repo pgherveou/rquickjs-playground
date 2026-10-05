@@ -13,7 +13,7 @@ async fn one_caller_thread_awaits_ten_waiting_scripts_at_once() {
 
     let mut runs = JoinSet::new();
     for _ in 0..10 {
-        runs.spawn(run_script(script.to_string()));
+        runs.spawn(run_script(script.to_string(), None));
     }
     let values: Vec<_> = runs
         .join_all()

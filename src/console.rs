@@ -5,16 +5,31 @@ use std::sync::{Arc, Mutex};
 use rquickjs::prelude::{Func, Rest};
 use rquickjs::{Ctx, Object, Result, Value};
 
-#[derive(Clone, Default)]
-pub struct Console(Arc<Mutex<Vec<String>>>);
+use crate::ConsoleListener;
+
+#[derive(Clone)]
+pub struct Console {
+    lines: Arc<Mutex<Vec<String>>>,
+    listener: Option<Arc<dyn ConsoleListener>>,
+}
 
 impl Console {
+    pub fn new(listener: Option<Arc<dyn ConsoleListener>>) -> Self {
+        Self {
+            lines: Arc::default(),
+            listener,
+        }
+    }
+
     pub fn push(&self, line: String) {
-        self.0.lock().unwrap().push(line);
+        if let Some(listener) = &self.listener {
+            listener.on_line(line.clone());
+        }
+        self.lines.lock().unwrap().push(line);
     }
 
     pub fn lines(&self) -> Vec<String> {
-        self.0.lock().unwrap().clone()
+        self.lines.lock().unwrap().clone()
     }
 
     pub fn install(&self, ctx: &Ctx<'_>) -> Result<()> {

@@ -31,27 +31,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import uniffi.playground.ScriptOutcome
+import uniffi.playground.ConsoleListener
 import uniffi.playground.runScript
 
 /** The script for one parallel sandbox, with its number written into the source. */
 private object WorkerScript {
-    fun source(worker: Int) = """await new Promise((resolve) => setTimeout(resolve, 200));
+    fun source(worker: Int) = """console.log("worker $worker start");
+await new Promise((resolve) => setTimeout(resolve, 200));
 console.log("worker $worker done");"""
-}
-
-private data class WorkerResult(val worker: Int, val outcome: ScriptOutcome) {
-    val line: String
-        get() = "${outcome.durationMs.toString().padStart(4)} ms  " +
-            (outcome.error ?: outcome.console.joinToString(" "))
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ParallelScreen(onBack: () -> Unit) {
     var count by rememberSaveable { mutableIntStateOf(10) }
-    var results by remember { mutableStateOf(listOf<WorkerResult>()) }
-    var totalMs by remember { mutableStateOf<Long?>(null) }
+    var log by remember { mutableStateOf(listOf<String>()) }
+    var summary by remember { mutableStateOf<String?>(null) }
     var isRunning by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -82,20 +77,27 @@ fun ParallelScreen(onBack: () -> Unit) {
             CodeBlock("Script for sandbox 1", WorkerScript.source(1))
             Button(
                 onClick = {
-                    results = emptyList()
-                    totalMs = null
+                    log = emptyList()
+                    summary = null
                     isRunning = true
+                    val sandboxes = count
+                    val console = object : ConsoleListener {
+                        override fun onLine(line: String) {
+                            scope.launch { log = log + line }
+                        }
+                    }
                     scope.launch {
                         val started = SystemClock.elapsedRealtime()
                         coroutineScope {
-                            for (worker in 1..count) {
+                            for (worker in 1..sandboxes) {
                                 launch {
-                                    val outcome = runScript(WorkerScript.source(worker))
-                                    results = results + WorkerResult(worker, outcome)
+                                    runScript(WorkerScript.source(worker), console).error?.let {
+                                        log = log + "worker $worker failed: $it"
+                                    }
                                 }
                             }
                         }
-                        totalMs = SystemClock.elapsedRealtime() - started
+                        summary = "$sandboxes sandboxes finished in ${SystemClock.elapsedRealtime() - started} ms"
                         isRunning = false
                     }
                 },
@@ -103,11 +105,9 @@ fun ParallelScreen(onBack: () -> Unit) {
             ) {
                 Text(if (isRunning) "Running…" else "Run")
             }
-            totalMs?.let {
-                Text("${results.size} sandboxes finished in $it ms", style = MaterialTheme.typography.titleMedium)
-            }
-            if (results.isNotEmpty()) {
-                CodeBlock("Finished, in order", results.joinToString("\n") { it.line })
+            summary?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
+            if (log.isNotEmpty()) {
+                CodeBlock("Console, in arrival order", log.joinToString("\n"))
             }
         }
     }

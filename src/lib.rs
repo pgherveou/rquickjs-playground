@@ -3,6 +3,7 @@
 mod console;
 mod timers;
 
+use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -30,10 +31,19 @@ pub struct ScriptOutcome {
     pub duration_ms: u64,
 }
 
+/// Receives each console line from the sandbox thread as soon as the script logs it.
+#[uniffi::export(with_foreign)]
+pub trait ConsoleListener: Send + Sync {
+    fn on_line(&self, line: String);
+}
+
 /// Runs `source` in a fresh sandbox on its own thread and resolves once it and every timer it
 /// scheduled finish, or the time budget runs out. The caller's thread is free while it runs.
-#[uniffi::export]
-pub async fn run_script(source: String) -> ScriptOutcome {
+#[uniffi::export(default(listener = None))]
+pub async fn run_script(
+    source: String,
+    listener: Option<Arc<dyn ConsoleListener>>,
+) -> ScriptOutcome {
     let (outcome_sender, outcome) = oneshot::channel();
     thread::Builder::new()
         .name("js-sandbox".into())
@@ -43,15 +53,18 @@ pub async fn run_script(source: String) -> ScriptOutcome {
                 .enable_time()
                 .build()
                 .expect("tokio runtime");
-            let _ = outcome_sender.send(sandbox.block_on(run_in_sandbox(source)));
+            let _ = outcome_sender.send(sandbox.block_on(run_in_sandbox(source, listener)));
         })
         .expect("spawn sandbox thread");
     outcome.await.expect("sandbox thread panicked")
 }
 
-async fn run_in_sandbox(source: String) -> ScriptOutcome {
+async fn run_in_sandbox(
+    source: String,
+    listener: Option<Arc<dyn ConsoleListener>>,
+) -> ScriptOutcome {
     let started = Instant::now();
-    let console = Console::default();
+    let console = Console::new(listener);
     let result = match evaluate(source, started + TIME_BUDGET, console.clone()).await {
         Ok(result) => result,
         Err(error) => Err(format!("sandbox setup failed: {error}")),
