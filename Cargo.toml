@@ -25,5 +25,5 @@ rquickjs = { version = "0.11", features = ["full-async"] }
 tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
 uniffi = { version = "0.32.0", features = ["cli"] }
 
-[target.'cfg(target_os = "ios")'.dependencies]
+[target.'cfg(any(target_os = "ios", target_os = "android"))'.dependencies]
 rquickjs = { version = "0.11", features = ["bindgen"] }

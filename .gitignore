@@ -1,3 +1,8 @@
 target/
 ios/Generated/
 ios/build/
+android/app/src/main/jniLibs/
+android/app/src/generated/
+android/**/build/
+android/.gradle/
+android/local.properties

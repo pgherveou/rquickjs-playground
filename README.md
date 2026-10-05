@@ -1,11 +1,11 @@
 # rquickjs playground
 
-Runs JavaScript in a QuickJS sandbox from Rust, with no WebView, and calls it from a SwiftUI app.
-Built on [rquickjs](https://github.com/DelSkayn/rquickjs) (QuickJS-NG), a few
+Runs JavaScript in a QuickJS sandbox from Rust, with no WebView, and calls it from a SwiftUI app and a
+Jetpack Compose app. Built on [rquickjs](https://github.com/DelSkayn/rquickjs) (QuickJS-NG), a few
 [LLRT](https://github.com/awslabs/llrt) modules for web globals, and
-[UniFFI](https://github.com/mozilla/uniffi-rs) for the Swift bindings.
+[UniFFI](https://github.com/mozilla/uniffi-rs) for the Swift and Kotlin bindings.
 
-<img src="docs/demo.gif" width="320" alt="Opening samples in the demo app and running them">
+<img src="docs/demo.gif" width="640" alt="The same samples running on iOS (left) and Android (right)">
 
 ## Run
 
@@ -17,8 +17,16 @@ cargo test
 scripts/build-ios.sh && open ios/Playground.xcodeproj
 ```
 
-`cargo run --example run -- samples/07-crypto.js` runs one script from the command line. The iOS build
-needs the `aarch64-apple-ios-sim` Rust target; rerun `scripts/build-ios.sh` after changing `src/`.
+```bash
+scripts/build-android.sh && (cd android && ./gradlew :app:installDebug)
+```
+
+`cargo run --example run -- samples/07-crypto.js` runs one script from the command line. Rerun the build
+script for a platform after changing `src/`.
+
+- iOS needs the `aarch64-apple-ios-sim` Rust target.
+- Android needs the `aarch64-linux-android` Rust target, `ANDROID_NDK_HOME`, JDK 17, and the SDK in
+  `ANDROID_HOME` or `android/local.properties`. It builds for arm64 devices and emulators only.
 
 ## What it does
 
@@ -29,7 +37,7 @@ needs the `aarch64-apple-ios-sim` Rust target; rerun `scripts/build-ios.sh` afte
   `TextDecoder`, `atob`, `btoa`, `Buffer`, `AbortController`, `EventTarget`, and `host`, a custom
   global injected from Rust whose `host.call(method, payload)` is a native async function.
 - No `fetch`, `require`, `process`, file system, network or `WebAssembly`.
-- `samples/*.js` hold the scripts the app lists. Each header states what it must produce
+- `samples/*.js` hold the scripts both apps list. Each header states what it must produce
   (`// expect:`, `// expect-error:`, `// expect-console:`), and `cargo test` checks every one.
 
 ## Findings
@@ -38,6 +46,6 @@ needs the `aarch64-apple-ios-sim` Rust target; rerun `scripts/build-ios.sh` afte
   the process on a QuickJS leak assertion. `src/timers.rs` replaces it with timers owned by the runtime.
 - `llrt_modules` 0.8.1-beta needs `rquickjs ^0.11` (current is 0.14), and its umbrella crate does not
   build without the `path` feature, so this depends on the individual `llrt_*` crates.
-- rquickjs ships no iOS bindings. The iOS build enables its `bindgen` feature and passes clang the
-  simulator target and SDK (`scripts/build-ios.sh`).
+- rquickjs ships no iOS or Android bindings. Both builds enable its `bindgen` feature: iOS passes
+  clang the simulator target and SDK, Android the NDK sysroot (see `scripts/`).
 - A simulator debug build of the app is about 9 MB.
