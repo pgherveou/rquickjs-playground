@@ -26,8 +26,8 @@ needs the `aarch64-apple-ios-sim` Rust target; rerun `scripts/build-ios.sh` afte
   a fresh QuickJS runtime, and returns the value or error plus everything the script logged.
 - Limits per run: 16 MiB heap, 1 MiB stack, 1 second for execution and pending timers.
 - Globals: `console`, timers, `queueMicrotask`, `crypto` (with `subtle`), `URL`, `TextEncoder`,
-  `TextDecoder`, `atob`, `btoa`, `Buffer`, `AbortController`, `EventTarget`, and `host.call(method,
-  payload)`, a native async function standing in for TrUAPI.
+  `TextDecoder`, `atob`, `btoa`, `Buffer`, `AbortController`, `EventTarget`, and `host`, a custom
+  global injected from Rust whose `host.call(method, payload)` is a native async function.
 - No `fetch`, `require`, `process`, file system, network or `WebAssembly`.
 - `samples/*.js` hold the scripts the app lists. Each header states what it must produce
   (`// expect:`, `// expect-error:`, `// expect-console:`), and `cargo test` checks every one.

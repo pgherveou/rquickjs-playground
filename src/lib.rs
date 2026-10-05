@@ -131,7 +131,7 @@ fn install_globals(ctx: &Ctx<'_>, console: Console) -> rquickjs::Result<()> {
     ctx.globals().set("host", host)
 }
 
-/// Stands in for the native API a product worker would reach through TrUAPI.
+/// The API behind the `host` global, showing a native async function exposed to scripts.
 async fn host_call<'js>(
     ctx: Ctx<'js>,
     method: String,
