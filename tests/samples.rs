@@ -27,8 +27,8 @@ fn expected(source: &str) -> Observed {
     expected
 }
 
-fn observed(source: &str, expected: &Observed) -> Observed {
-    let outcome = run_script(source.to_string());
+async fn observed(source: &str, expected: &Observed) -> Observed {
+    let outcome = run_script(source.to_string()).await;
     let error_contains = match (&outcome.error, &expected.error_contains) {
         (Some(error), Some(fragment)) if error.contains(fragment.as_str()) => {
             Some(fragment.clone())
@@ -42,8 +42,8 @@ fn observed(source: &str, expected: &Observed) -> Observed {
     }
 }
 
-#[test]
-fn every_sample_produces_what_its_header_expects() {
+#[tokio::test]
+async fn every_sample_produces_what_its_header_expects() {
     let samples_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("samples");
     let mut paths: Vec<_> = fs::read_dir(&samples_dir)
         .unwrap()
@@ -53,18 +53,18 @@ fn every_sample_produces_what_its_header_expects() {
     paths.sort();
     assert!(!paths.is_empty(), "no samples in {}", samples_dir.display());
 
-    let mismatches: Vec<String> = paths
-        .iter()
-        .filter_map(|path| {
-            let source = fs::read_to_string(path).unwrap();
-            let expected = expected(&source);
-            let observed = observed(&source, &expected);
-            (observed != expected).then(|| {
-                let name = path.file_name().unwrap().to_string_lossy();
-                format!("{name}\n  expected {expected:?}\n  observed {observed:?}")
-            })
-        })
-        .collect();
+    let mut mismatches = Vec::new();
+    for path in &paths {
+        let source = fs::read_to_string(path).unwrap();
+        let expected = expected(&source);
+        let observed = observed(&source, &expected).await;
+        if observed != expected {
+            let name = path.file_name().unwrap().to_string_lossy();
+            mismatches.push(format!(
+                "{name}\n  expected {expected:?}\n  observed {observed:?}"
+            ));
+        }
+    }
 
     assert_eq!(mismatches, Vec::<String>::new());
 }

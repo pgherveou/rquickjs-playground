@@ -11,11 +11,12 @@ and shows the result, any error, and what it logged.
 ## Layout
 
 ```
-src/lib.rs            run_script(source) -> ScriptOutcome, the only exported function
+src/lib.rs            async run_script(source) -> ScriptOutcome, the only exported function
 src/console.rs        console.* that records lines instead of printing them
 src/timers.rs         setTimeout / setInterval / clear* / queueMicrotask, owned by one runtime
 samples/*.js          sample scripts; the header states what each must produce
 tests/samples.rs      runs every sample and checks it against its header
+tests/concurrency.rs  one caller thread awaits ten sandboxes at once
 examples/run.rs       runs one script from the command line
 scripts/build-ios.sh  builds the xcframework and Swift bindings into ios/Generated/
 ios/                  SwiftUI app; its project includes samples/ as bundle resources
@@ -62,9 +63,10 @@ Scripts run with top-level `await`, and a run waits for every pending timer.
 
 ## The sandbox
 
-Each run gets its own QuickJS runtime on its own thread, with a 16 MiB heap limit, a 1 MiB stack limit
-and a 1 second budget. The budget covers both execution, through QuickJS's interrupt handler, and
-waiting on timers.
+Each run gets its own QuickJS runtime on its own thread. `run_script` is async, so the caller's
+thread (a Swift concurrency thread in the app) is free while the script runs. Each runtime has a
+16 MiB heap limit, a 1 MiB stack limit and a 1 second budget. The budget covers both execution,
+through QuickJS's interrupt handler, and waiting on timers.
 
 Globals:
 

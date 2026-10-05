@@ -11,6 +11,7 @@ use rquickjs::{
     AsyncContext, AsyncRuntime, CatchResultExt, CaughtError, Ctx, Exception, Object, Promise,
     Value, async_with,
 };
+use tokio::sync::oneshot;
 
 use crate::console::{Console, format_values};
 
@@ -30,23 +31,23 @@ pub struct ScriptOutcome {
     pub duration_ms: u64,
 }
 
-/// Runs `source` in a fresh sandbox and waits for it and every timer it scheduled to finish,
-/// or for the time budget to run out.
+/// Runs `source` in a fresh sandbox on its own thread and resolves once it and every timer it
+/// scheduled finish, or the time budget runs out. The caller's thread is free while it runs.
 #[uniffi::export]
-pub fn run_script(source: String) -> ScriptOutcome {
+pub async fn run_script(source: String) -> ScriptOutcome {
+    let (outcome_sender, outcome) = oneshot::channel();
     thread::Builder::new()
         .name("js-sandbox".into())
         .stack_size(THREAD_STACK_BYTES)
         .spawn(move || {
-            tokio::runtime::Builder::new_current_thread()
+            let sandbox = tokio::runtime::Builder::new_current_thread()
                 .enable_time()
                 .build()
-                .expect("tokio runtime")
-                .block_on(run_in_sandbox(source))
+                .expect("tokio runtime");
+            let _ = outcome_sender.send(sandbox.block_on(run_in_sandbox(source)));
         })
-        .expect("spawn sandbox thread")
-        .join()
-        .expect("sandbox thread panicked")
+        .expect("spawn sandbox thread");
+    outcome.await.expect("sandbox thread panicked")
 }
 
 async fn run_in_sandbox(source: String) -> ScriptOutcome {

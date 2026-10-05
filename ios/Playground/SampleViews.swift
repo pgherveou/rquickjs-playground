@@ -50,8 +50,7 @@ struct SampleView: View {
     private func run() async {
         outcome = nil
         isRunning = true
-        let source = sample.source
-        outcome = await Task.detached { runScript(source: source) }.value
+        outcome = await runScript(source: sample.source)
         isRunning = false
     }
 }
