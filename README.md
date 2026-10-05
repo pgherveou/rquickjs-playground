@@ -45,9 +45,14 @@ script for a platform after changing `src/`.
 ## Findings
 
 - `llrt_timers` keeps timers in process-wide state, and freeing a runtime with a timer pending aborts
-  the process on a QuickJS leak assertion. `src/timers.rs` replaces it with timers owned by the runtime.
-- `llrt_modules` 0.8.1-beta needs `rquickjs ^0.11` (current is 0.14), and its umbrella crate does not
-  build without the `path` feature, so this depends on the individual `llrt_*` crates.
+  the process on a QuickJS leak assertion. It is still that way on llrt `main`. `src/timers.rs`
+  replaces it with timers owned by the runtime.
+- The published `llrt_*` crates (0.8.1-beta) need `rquickjs ^0.11`, so this depends on llrt's `main`
+  branch (0.9.0-beta, rquickjs 0.14), one crate per module. The 0.8.1-beta `llrt_modules` umbrella
+  crate did not build without its `path` feature.
+- rquickjs's `full` feature includes `dyn-load` (native modules through `dlopen2`), which does not
+  compile for iOS or Android: `dlopen2` 0.9.0 uses `once_cell` there without depending on it. The
+  sandbox enables only `futures`, and has no reason to load native modules anyway.
 - rquickjs ships no iOS or Android bindings. Both builds enable its `bindgen` feature: iOS passes
   clang the simulator target and SDK, Android the NDK sysroot (see `scripts/`).
-- A simulator debug build of the app is about 9 MB.
+- Size: the iOS simulator debug app is about 12 MB, and the stripped Android arm64 library 6.4 MB.

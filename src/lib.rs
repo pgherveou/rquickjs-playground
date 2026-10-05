@@ -8,8 +8,7 @@ use std::time::{Duration, Instant};
 
 use rquickjs::prelude::{Async, Func};
 use rquickjs::{
-    AsyncContext, AsyncRuntime, CatchResultExt, CaughtError, Ctx, Exception, Object, Promise,
-    Value, async_with,
+    AsyncContext, AsyncRuntime, CatchResultExt, CaughtError, Ctx, Exception, Object, Promise, Value,
 };
 use tokio::sync::oneshot;
 
@@ -83,22 +82,23 @@ async fn evaluate(
     let context = AsyncContext::full(&runtime).await?;
 
     let run = async {
-        let result = async_with!(context => |ctx| {
-            if let Err(error) = install_globals(&ctx, console) {
-                return Err(format!("installing globals failed: {error}"));
-            }
-            let completion = async {
-                let promise: Promise = ctx.eval_promise(source)?;
-                let completion: Object = promise.into_future().await?;
-                completion.get::<_, Value>("value")
-            };
-            completion
-                .await
-                .catch(&ctx)
-                .map(|value| format_values(&ctx, vec![value]))
-                .map_err(describe_error)
-        })
-        .await;
+        let result = context
+            .async_with(async |ctx| {
+                if let Err(error) = install_globals(&ctx, console) {
+                    return Err(format!("installing globals failed: {error}"));
+                }
+                let completion = async {
+                    let promise: Promise = ctx.eval_promise(source)?;
+                    let completion: Object = promise.into_future().await?;
+                    completion.get::<_, Value>("value")
+                };
+                completion
+                    .await
+                    .catch(&ctx)
+                    .map(|value| format_values(&ctx, vec![value]))
+                    .map_err(describe_error)
+            })
+            .await;
         runtime.idle().await;
         result
     };
