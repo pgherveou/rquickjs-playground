@@ -46,20 +46,43 @@ private val ResultGreen = Color(0xFF2E7D32)
 @Composable
 fun PlaygroundApp(samples: List<Sample>) {
     var selectedFile by rememberSaveable { mutableStateOf<String?>(null) }
+    var showParallel by rememberSaveable { mutableStateOf(false) }
     val selected = samples.firstOrNull { it.fileName == selectedFile }
-    if (selected == null) {
-        SampleList(samples, onSelect = { selectedFile = it.fileName })
-    } else {
-        BackHandler { selectedFile = null }
-        SampleDetail(selected, onBack = { selectedFile = null })
+    when {
+        showParallel -> {
+            BackHandler { showParallel = false }
+            ParallelScreen(onBack = { showParallel = false })
+        }
+        selected != null -> {
+            BackHandler { selectedFile = null }
+            SampleDetail(selected, onBack = { selectedFile = null })
+        }
+        else -> SampleList(
+            samples,
+            onSelect = { selectedFile = it.fileName },
+            onParallel = { showParallel = true },
+        )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SampleList(samples: List<Sample>, onSelect: (Sample) -> Unit) {
+private fun SampleList(samples: List<Sample>, onSelect: (Sample) -> Unit, onParallel: () -> Unit) {
     Scaffold(topBar = { TopAppBar(title = { Text("QuickJS sandbox") }) }) { padding ->
         LazyColumn(contentPadding = padding) {
+            item {
+                ListItem(
+                    headlineContent = { Text("Parallel sandboxes") },
+                    modifier = Modifier.clickable(onClick = onParallel),
+                )
+                HorizontalDivider()
+                Text(
+                    "Samples",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 8.dp),
+                )
+            }
             items(samples, key = { it.fileName }) { sample ->
                 ListItem(
                     headlineContent = { Text(sample.title) },
@@ -128,7 +151,7 @@ private fun SampleDetail(sample: Sample, onBack: () -> Unit) {
 }
 
 @Composable
-private fun CodeBlock(title: String, text: String, color: Color = Color.Unspecified) {
+fun CodeBlock(title: String, text: String, color: Color = Color.Unspecified) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(title, style = MaterialTheme.typography.titleMedium)
         Text(

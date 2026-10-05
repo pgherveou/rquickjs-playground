@@ -5,8 +5,15 @@ struct SampleListView: View {
 
     var body: some View {
         NavigationStack {
-            List(samples) { sample in
-                NavigationLink(sample.title, value: sample)
+            List {
+                Section {
+                    NavigationLink("Parallel sandboxes") { ParallelView() }
+                }
+                Section("Samples") {
+                    ForEach(samples) { sample in
+                        NavigationLink(sample.title, value: sample)
+                    }
+                }
             }
             .navigationTitle("QuickJS sandbox")
             .navigationDestination(for: Sample.self) { SampleView(sample: $0) }
