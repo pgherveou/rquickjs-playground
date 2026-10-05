@@ -5,12 +5,7 @@ Built on [rquickjs](https://github.com/DelSkayn/rquickjs) (QuickJS-NG), a few
 [LLRT](https://github.com/awslabs/llrt) modules for web globals, and
 [UniFFI](https://github.com/mozilla/uniffi-rs) for the Swift bindings.
 
-<p>
-  <img src="docs/demo.gif" width="220" alt="Opening samples and running them">
-  <img src="docs/console-capture.png" width="220" alt="Console capture sample">
-  <img src="docs/host-call.png" width="220" alt="Native host call sample">
-  <img src="docs/infinite-loop.png" width="220" alt="Infinite loop stopped by the time budget">
-</p>
+<img src="docs/demo.gif" width="320" alt="Opening samples in the demo app and running them">
 
 ## Run
 
