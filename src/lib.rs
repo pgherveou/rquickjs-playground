@@ -140,19 +140,6 @@ async fn host_call<'js>(
     match method.as_str() {
         "echo" => Ok(payload),
         "reverse" => Ok(payload.chars().rev().collect()),
-        "delay" => {
-            let parsed = payload
-                .split_once(':')
-                .and_then(|(millis, reply)| Some((millis.parse().ok()?, reply)));
-            let Some((millis, reply)) = parsed else {
-                return Err(Exception::throw_type(
-                    &ctx,
-                    "delay expects \"<ms>:<reply>\"",
-                ));
-            };
-            tokio::time::sleep(Duration::from_millis(millis)).await;
-            Ok(reply.to_string())
-        }
         _ => Err(Exception::throw_message(
             &ctx,
             &format!("unknown host method: {method}"),

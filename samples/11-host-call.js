@@ -1,4 +1,4 @@
-// title: TrUAPI stand-in: host.call
+// title: Native host call
 // expect: ping todaklop unknown host method: missing
 const echoed = await host.call("echo", "ping");
 const reversed = await host.call("reverse", "polkadot");
