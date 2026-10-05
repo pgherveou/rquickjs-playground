@@ -5,7 +5,9 @@ Jetpack Compose app. Built on [rquickjs](https://github.com/DelSkayn/rquickjs) (
 [LLRT](https://github.com/awslabs/llrt) modules for web globals, and
 [UniFFI](https://github.com/mozilla/uniffi-rs) for the Swift and Kotlin bindings.
 
-<img src="docs/demo.gif" width="640" alt="The same samples running on iOS (left) and Android (right)">
+| iOS simulator | Android emulator |
+| :---: | :---: |
+| <img src="docs/ios.gif" width="300" alt="Samples running in the iOS simulator"> | <img src="docs/android.gif" width="300" alt="Samples running in the Android emulator"> |
 
 ## Run
 
