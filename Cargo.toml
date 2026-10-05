@@ -6,7 +6,7 @@ publish = false
 
 [lib]
 name = "playground"
-crate-type = ["lib", "staticlib"]
+crate-type = ["lib", "staticlib", "cdylib"]
 
 [[bin]]
 name = "uniffi-bindgen"
@@ -24,3 +24,6 @@ llrt_util = "0.8.1-beta"
 rquickjs = { version = "0.11", features = ["full-async"] }
 tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
 uniffi = { version = "0.32.0", features = ["cli"] }
+
+[target.'cfg(target_os = "ios")'.dependencies]
+rquickjs = { version = "0.11", features = ["bindgen"] }
