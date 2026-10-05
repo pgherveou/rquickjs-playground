@@ -18,7 +18,6 @@ llrt_buffer = { git = "https://github.com/awslabs/llrt", branch = "main" }
 llrt_crypto = { git = "https://github.com/awslabs/llrt", branch = "main" }
 llrt_events = { git = "https://github.com/awslabs/llrt", branch = "main" }
 llrt_logging = { git = "https://github.com/awslabs/llrt", branch = "main" }
-llrt_timers = { git = "https://github.com/awslabs/llrt", branch = "main" }
 llrt_url = { git = "https://github.com/awslabs/llrt", branch = "main" }
 llrt_util = { git = "https://github.com/awslabs/llrt", branch = "main" }
 rquickjs = { version = "0.14", features = ["futures"] }

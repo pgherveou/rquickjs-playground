@@ -1731,7 +1731,6 @@ dependencies = [
  "llrt_crypto",
  "llrt_events",
  "llrt_logging",
- "llrt_timers",
  "llrt_url",
  "llrt_util",
  "rquickjs",
