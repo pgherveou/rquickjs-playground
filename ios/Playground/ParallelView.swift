@@ -6,7 +6,7 @@ enum WorkerScript {
     static func source(worker: Int) -> String {
         """
         console.log("worker \(worker) start");
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await new Promise((resolve) => setTimeout(resolve, 3000));
         console.log("worker \(worker) done");
         """
     }
@@ -43,6 +43,21 @@ struct BatchResult {
 
     var lastStart: Duration? { log.last { $0.line.hasSuffix(" start") }?.arrival }
 
+    /// Most scripts between their start and done lines at the same moment.
+    var maxRunning: Int {
+        var running = 0
+        var peak = 0
+        for entry in log {
+            if entry.line.hasSuffix(" start") {
+                running += 1
+            } else if entry.line.hasSuffix(" done") {
+                running -= 1
+            }
+            peak = max(peak, running)
+        }
+        return peak
+    }
+
     static func run(workers: Int, console: ConsoleRecorder, worker run: @escaping @Sendable (String) async -> String?) async -> BatchResult {
         var failures: [String: Int] = [:]
         let appMemoryGrowth = await AppMemory.peakGrowth {
@@ -62,6 +77,8 @@ struct BatchResult {
 
 struct ParallelView: View {
     private static let counts = 1...5000
+    // Each worker waits 3 s, longer than the sandbox's default budget of 1 s.
+    private static let quickJSTimeBudget: TimeInterval = 5
 
     @State private var count = 10
     @State private var quickJS: BatchResult?
@@ -109,7 +126,7 @@ struct ParallelView: View {
 
         let quickJSConsole = ConsoleRecorder()
         let quickJSResult = await BatchResult.run(workers: workers, console: quickJSConsole) {
-            await runScript(source: $0, listener: quickJSConsole).error
+            await runScript(source: $0, listener: quickJSConsole, timeBudget: Self.quickJSTimeBudget).error
         }
 
         let webViewConsole = ConsoleRecorder()
@@ -153,6 +170,7 @@ struct ResultsTable: View {
                 }
                 row("Total time") { $0.total.inMilliseconds }
                 row("Last start") { $0.lastStart?.inMilliseconds ?? "-" }
+                row("Max running at once") { "\($0.maxRunning)" }
                 row("Failed") { "\($0.failures.values.reduce(0, +))" }
                 row("App memory") { "+" + megabytes($0.appMemoryGrowth) }
                 row("WebKit memory") { $0.webKitMemory.map(megabytes) ?? "n/a" }
@@ -165,7 +183,7 @@ struct ResultsTable: View {
                     Text(verbatim: "\(engine): \(count) × \(reason)").font(.caption).foregroundStyle(.red)
                 }
             }
-            Text("App memory: peak growth of this app's process. WebKit memory: the WebContent processes of the live web views, read when the batch ends. The simulator allows reading them; a device does not (n/a). Web views stay alive until the next Run.")
+            Text("App memory: peak growth of this app's process. WebKit memory: the WebContent processes of the live web views, read when the batch ends. Web views stay alive until the next Run.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
