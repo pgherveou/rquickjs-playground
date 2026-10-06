@@ -20,7 +20,7 @@ uniffi::setup_scaffolding!();
 const MEMORY_LIMIT_BYTES: usize = 16 * 1024 * 1024;
 const MAX_STACK_BYTES: usize = 1024 * 1024;
 const THREAD_STACK_BYTES: usize = 8 * 1024 * 1024;
-const TIME_BUDGET: Duration = Duration::from_secs(1);
+const DEFAULT_TIME_BUDGET: Duration = Duration::from_secs(1);
 
 /// What a script produced: its final value or the error that stopped it, plus everything it logged.
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
@@ -38,12 +38,15 @@ pub trait ConsoleListener: Send + Sync {
 }
 
 /// Runs `source` in a fresh sandbox on its own thread and resolves once it and every timer it
-/// scheduled finish, or the time budget runs out. The caller's thread is free while it runs.
-#[uniffi::export(default(listener = None))]
+/// scheduled finish, or the time budget (1 second unless given) runs out. The caller's thread is free
+/// while it runs.
+#[uniffi::export(default(listener = None, time_budget = None))]
 pub async fn run_script(
     source: String,
     listener: Option<Arc<dyn ConsoleListener>>,
+    time_budget: Option<Duration>,
 ) -> ScriptOutcome {
+    let time_budget = time_budget.unwrap_or(DEFAULT_TIME_BUDGET);
     let (outcome_sender, outcome) = oneshot::channel();
     thread::Builder::new()
         .name("js-sandbox".into())
@@ -53,7 +56,11 @@ pub async fn run_script(
                 .enable_time()
                 .build()
                 .expect("tokio runtime");
-            let _ = outcome_sender.send(sandbox.block_on(run_in_sandbox(source, listener)));
+            let _ = outcome_sender.send(sandbox.block_on(run_in_sandbox(
+                source,
+                listener,
+                time_budget,
+            )));
         })
         .expect("spawn sandbox thread");
     outcome.await.expect("sandbox thread panicked")
@@ -62,10 +69,11 @@ pub async fn run_script(
 async fn run_in_sandbox(
     source: String,
     listener: Option<Arc<dyn ConsoleListener>>,
+    time_budget: Duration,
 ) -> ScriptOutcome {
     let started = Instant::now();
     let console = Console::new(listener);
-    let result = match evaluate(source, started + TIME_BUDGET, console.clone()).await {
+    let result = match evaluate(source, time_budget, console.clone()).await {
         Ok(result) => result,
         Err(error) => Err(format!("sandbox setup failed: {error}")),
     };
@@ -83,9 +91,10 @@ async fn run_in_sandbox(
 
 async fn evaluate(
     source: String,
-    deadline: Instant,
+    time_budget: Duration,
     console: Console,
 ) -> rquickjs::Result<Result<String, String>> {
+    let deadline = Instant::now() + time_budget;
     let runtime = AsyncRuntime::new()?;
     runtime.set_memory_limit(MEMORY_LIMIT_BYTES).await;
     runtime.set_max_stack_size(MAX_STACK_BYTES).await;
@@ -117,7 +126,7 @@ async fn evaluate(
     };
     Ok(tokio::time::timeout_at(deadline.into(), run)
         .await
-        .unwrap_or_else(|_| Err(format!("time budget of {TIME_BUDGET:?} exceeded"))))
+        .unwrap_or_else(|_| Err(format!("time budget of {time_budget:?} exceeded"))))
 }
 
 fn install_globals(ctx: &Ctx<'_>, console: Console) -> rquickjs::Result<()> {

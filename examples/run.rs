@@ -4,5 +4,5 @@
 async fn main() {
     let path = std::env::args().nth(1).expect("usage: run <script.js>");
     let source = std::fs::read_to_string(&path).expect("read script");
-    println!("{:#?}", playground::run_script(source, None).await);
+    println!("{:#?}", playground::run_script(source, None, None).await);
 }

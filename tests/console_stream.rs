@@ -32,7 +32,7 @@ async fn each_console_line_reaches_the_listener_when_it_is_logged() {
         console.log("done");
     "#;
 
-    let outcome = run_script(script.to_string(), Some(recorder.clone())).await;
+    let outcome = run_script(script.to_string(), Some(recorder.clone()), None).await;
 
     let lines = recorder.lines.lock().unwrap().clone();
     let names: Vec<_> = lines.iter().map(|(line, _)| line.as_str()).collect();
