@@ -7,9 +7,10 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use rquickjs::prelude::{Async, Func};
+use rquickjs::class::Trace;
 use rquickjs::{
-    AsyncContext, AsyncRuntime, CatchResultExt, CaughtError, Ctx, Exception, Object, Promise, Value,
+    AsyncContext, AsyncRuntime, CatchResultExt, CaughtError, Class, Ctx, JsLifetime, Object,
+    Promise, Value,
 };
 use tokio::sync::oneshot;
 
@@ -148,24 +149,27 @@ fn install_globals(ctx: &Ctx<'_>, console: Console) -> rquickjs::Result<()> {
     console.install(ctx)?;
     timers::install(ctx, console)?;
 
-    let host = Object::new(ctx.clone())?;
-    host.set("call", Func::from(Async(host_call)))?;
-    ctx.globals().set("host", host)
+    ctx.globals()
+        .set("host", Class::instance(ctx.clone(), Host {})?)
 }
 
-/// The API behind the `host` global, showing a native async function exposed to scripts.
-async fn host_call<'js>(
-    ctx: Ctx<'js>,
-    method: String,
-    payload: String,
-) -> rquickjs::Result<String> {
-    match method.as_str() {
-        "echo" => Ok(payload),
-        "reverse" => Ok(payload.chars().rev().collect()),
-        _ => Err(Exception::throw_message(
-            &ctx,
-            &format!("unknown host method: {method}"),
-        )),
+/// The `host` global. Scripts get a Promise from each async method and a plain value from each sync one.
+#[derive(Trace, JsLifetime)]
+#[rquickjs::class]
+pub struct Host {}
+
+#[rquickjs::methods]
+impl Host {
+    pub async fn echo(&self, payload: String) -> String {
+        payload
+    }
+
+    pub async fn reverse(&self, payload: String) -> String {
+        payload.chars().rev().collect()
+    }
+
+    pub fn uppercase(&self, text: String) -> String {
+        text.to_uppercase()
     }
 }
 

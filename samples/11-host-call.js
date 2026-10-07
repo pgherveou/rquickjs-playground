@@ -1,11 +1,12 @@
 // title: Native host call
-// expect: ping todaklop unknown host method: missing
-const echoed = await host.call("echo", "ping");
-const reversed = await host.call("reverse", "polkadot");
+// expect: true ping todaklop POLKADOT not a function
+const echoed = host.echo("ping");
+const reversed = host.reverse("polkadot");
+const shouted = host.uppercase("polkadot");
 let failure;
 try {
-  await host.call("missing", "");
+  host.missing("");
 } catch (error) {
   failure = error.message;
 }
-`${echoed} ${reversed} ${failure}`
+`${echoed instanceof Promise} ${await echoed} ${await reversed} ${shouted} ${failure}`

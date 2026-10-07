@@ -20,7 +20,7 @@ llrt_events = { git = "https://github.com/awslabs/llrt", branch = "main" }
 llrt_logging = { git = "https://github.com/awslabs/llrt", branch = "main" }
 llrt_url = { git = "https://github.com/awslabs/llrt", branch = "main" }
 llrt_util = { git = "https://github.com/awslabs/llrt", branch = "main" }
-rquickjs = { version = "0.14", features = ["futures"] }
+rquickjs = { version = "0.14", features = ["futures", "macro"] }
 tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
 uniffi = { version = "0.32.0", features = ["cli"] }
 
